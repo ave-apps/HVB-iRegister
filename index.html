@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invloedsregister — HVB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   INVLOEDSREGISTER — Huurdersvereniging Brederode
+   Eén-bestands app. Login = voordeur (rolbepaling, geen slot).
+   Data: lokaal (demo) of via Apps Script-backend (CONFIG.BACKEND_URL).
+   ============================================================ */
+
+:root{
+  --ink:#1b2421;
+  --ink-soft:#5b655f;
+  --paper:#f3f5f2;
+  --surface:#ffffff;
+  --brand:#1f6f4a;
+  --brand-dark:#16543a;
+  --brand-tint:#e7f0ea;
+  --line:#d9ddd8;
+  --line-soft:#e8ebe7;
+  /* deadline-spectrum */
+  --ok:#2f9e5e;
+  --warn:#df8a1f;
+  --crit:#c0392b;
+  --over:#7e1810;
+  --shadow:0 1px 2px rgba(20,40,30,.06),0 8px 24px rgba(20,40,30,.07);
+  --radius:14px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  color:var(--ink);
+  background:var(--paper);
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Spectral",Georgia,serif;font-weight:600;letter-spacing:-.01em;margin:0}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink)}
+.hidden{display:none !important}
+
+/* ---------- VOORDEUR (login) ---------- */
+.gate{min-height:100dvh;display:grid;place-items:center;padding:24px}
+.gate-card{
+  width:min(420px,100%);background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:34px 32px 28px;
+}
+.gate-mark{display:flex;align-items:center;gap:11px;margin-bottom:4px}
+.gate-mark .dot{width:30px;height:30px;border-radius:8px;background:var(--brand);
+  display:grid;place-items:center;color:#fff;font-family:"Spectral",serif;font-weight:700}
+.gate-mark span{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+.gate h1{font-size:27px;margin:14px 0 4px;line-height:1.1}
+.gate .sub{color:var(--ink-soft);font-size:14px;margin-bottom:26px}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.field input,.field select,.field textarea{
+  width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;
+  background:#fcfdfc;transition:border-color .15s,box-shadow .15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint)}
+.btn{
+  border:1px solid transparent;border-radius:9px;padding:11px 18px;font-weight:600;
+  font-size:14.5px;background:var(--brand);color:#fff;transition:background .15s,transform .05s}
+.btn:hover{background:var(--brand-dark)}
+.btn:active{transform:translateY(1px)}
+.btn-block{width:100%}
+.btn-ghost{background:transparent;color:var(--brand);border-color:var(--line)}
+.btn-ghost:hover{background:var(--brand-tint);color:var(--brand-dark)}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:8px}
+.btn-danger{background:#fff;color:var(--crit);border-color:#e7c4bf}
+.btn-danger:hover{background:#fbeceb}
+.gate-err{color:var(--crit);font-size:13.5px;margin-top:12px;min-height:18px}
+.gate-foot{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft);
+  font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+.gate-foot code{background:var(--brand-tint);padding:1px 6px;border-radius:5px;font-size:12px;color:var(--brand-dark)}
+
+/* ---------- APP CHROME ---------- */
+.app{max-width:1180px;margin:0 auto;padding:0 22px 80px}
+.topbar{
+  position:sticky;top:0;z-index:30;background:rgba(243,245,242,.85);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);margin:0 -22px 0;padding:14px 22px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .dot{width:28px;height:28px;border-radius:7px;background:var(--brand);
+  display:grid;place-items:center;color:#fff;font-family:"Spectral",serif;font-weight:700}
+.brand b{font-family:"Spectral",serif;font-weight:600;font-size:18px}
+.brand small{display:block;font-size:11px;color:var(--ink-soft);letter-spacing:.04em;margin-top:-2px}
+.spacer{flex:1}
+.whoami{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink-soft)}
+.chip{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;background:var(--brand-tint);color:var(--brand-dark)}
+.chip.lezer{background:#eceff1;color:#516170}
+.chip.invoerder{background:#e6f0ff;color:#2c5aa6}
+.chip.beheerder{background:#f3e9ff;color:#6c3fa6}
+
+/* page head */
+.pagehead{padding:26px 0 14px}
+.pagehead h1{font-size:30px;line-height:1.08}
+.pagehead p{margin:7px 0 0;color:var(--ink-soft);max-width:62ch;font-size:14.5px}
+
+/* alert panel */
+.alertbar{
+  background:#fff7ed;border:1px solid #f4ddbf;border-left:4px solid var(--warn);
+  border-radius:11px;padding:13px 16px;margin:8px 0 22px;display:flex;gap:12px;align-items:flex-start}
+.alertbar .ico{flex:0 0 auto;width:22px;height:22px;border-radius:6px;background:var(--warn);
+  color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;margin-top:1px}
+.alertbar b{font-weight:600}
+.alertbar ul{margin:6px 0 0;padding-left:18px;font-size:13.5px;color:#7a4d12}
+.alertbar.is-crit{background:#fdeceb;border-color:#f0c8c3;border-left-color:var(--crit)}
+.alertbar.is-crit .ico{background:var(--crit)}
+.alertbar.is-crit ul{color:#8a2a22}
+
+/* toolbar */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.search{flex:1;min-width:200px;position:relative}
+.search input{width:100%;padding:10px 13px 10px 36px;border:1px solid var(--line);
+  border-radius:9px;background:var(--surface)}
+.search input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint)}
+.search .mag{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-size:14px}
+.period{display:flex;align-items:center;gap:7px;background:var(--surface);
+  border:1px solid var(--line);border-radius:9px;padding:5px 9px}
+.period label{font-size:11.5px;color:var(--ink-soft);font-weight:600}
+.period input{border:none;background:transparent;padding:4px 2px;width:120px}
+.period input:focus{outline:none}
+.period .sep{color:var(--ink-soft)}
+
+/* table */
+.tablewrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+table.reg{width:100%;border-collapse:collapse}
+.reg thead th{
+  background:var(--brand);color:#fff;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;
+  font-weight:600;text-align:left;padding:12px 14px;white-space:nowrap}
+.reg tbody td{padding:13px 14px;border-top:1px solid var(--line-soft);vertical-align:top;font-size:14px}
+.reg tbody tr:hover{background:#fafbfa}
+.reg .t-onderwerp{font-weight:600;color:var(--ink)}
+.reg .t-omschr{color:var(--ink-soft);font-size:13px;margin-top:3px;max-width:34ch}
+.reg .t-meta{font-size:12px;color:var(--ink-soft);margin-top:5px}
+.reg .t-meta b{color:var(--ink);font-weight:600}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.tag.signaal{background:#fce4e4;color:#b3261e}
+.tag.advies{background:#e4f0fc;color:#1e5fb3}
+.tag.melding{background:#fdf1dd;color:#9a6a12}
+.tag.vraag{background:#e9e4fc;color:#4a35b3}
+.status{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap}
+.status.geregistreerd{background:#fdf3d6;color:#8a6d18}
+.status.behandeling{background:#dbeafe;color:#1e4fa6}
+.status.toegezegd{background:#dcf3e4;color:#1d7a45}
+.status.afgerond{background:#e6e9e6;color:#4a544e}
+.status.vervallen{background:#efe6e6;color:#7a5b5b}
+
+/* deadline cell */
+.dl{min-width:150px}
+.dl .bar{height:8px;border-radius:999px;background:#edefed;overflow:hidden;margin-bottom:5px}
+.dl .bar i{display:block;height:100%;border-radius:999px;transition:width .4s}
+.dl .txt{font-size:12.5px;font-weight:600}
+.dl .end{font-size:11.5px;color:var(--ink-soft);margin-top:1px}
+.dl.is-ok .bar i{background:var(--ok)} .dl.is-ok .txt{color:var(--ok)}
+.dl.is-warn .bar i{background:var(--warn)} .dl.is-warn .txt{color:#b56f12}
+.dl.is-crit .bar i{background:var(--crit)} .dl.is-crit .txt{color:var(--crit)}
+.dl.is-over .bar i{background:var(--over)} .dl.is-over .txt{color:var(--over)}
+.dl.is-none .txt{color:var(--ink-soft);font-weight:500}
+
+.rowact{display:flex;gap:6px}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:7px;width:30px;height:30px;
+  display:grid;place-items:center;color:var(--ink-soft);font-size:14px}
+.iconbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-tint)}
+
+.empty{padding:46px 20px;text-align:center;color:var(--ink-soft)}
+.empty b{display:block;color:var(--ink);font-weight:600;font-size:16px;margin-bottom:4px}
+
+/* ---------- MODAL ---------- */
+.overlay{position:fixed;inset:0;background:rgba(20,35,28,.42);display:grid;place-items:center;
+  z-index:60;padding:20px}
+.modal{width:min(680px,100%);max-height:90dvh;overflow:auto;background:var(--surface);
+  border-radius:var(--radius);box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.modal-head{position:sticky;top:0;background:var(--surface);padding:20px 24px 14px;
+  border-bottom:1px solid var(--line-soft);display:flex;align-items:center}
+.modal-head h2{font-size:20px}
+.modal-head .x{margin-left:auto;border:none;background:none;font-size:22px;color:var(--ink-soft);
+  line-height:1;padding:2px 6px;border-radius:6px}
+.modal-head .x:hover{background:var(--line-soft);color:var(--ink)}
+.modal-body{padding:18px 24px 8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid2 .full{grid-column:1/-1}
+.hint{font-size:12px;color:var(--ink-soft);margin-top:5px}
+.modal-foot{position:sticky;bottom:0;background:var(--surface);padding:14px 24px 18px;
+  border-top:1px solid var(--line-soft);display:flex;gap:10px;justify-content:flex-end}
+
+/* ---------- PRINT ---------- */
+.print-area{display:none}
+@media print{
+  body{background:#fff;font-size:11px}
+  .app,.topbar,.overlay{display:none !important}
+  .print-area{display:block;color:#000}
+  @page{size:A4 landscape;margin:14mm 12mm}
+  .p-head{border-bottom:2px solid #1f6f4a;padding-bottom:10px;margin-bottom:14px;
+    display:flex;justify-content:space-between;align-items:flex-end}
+  .p-head h1{font-size:20px;margin:0}
+  .p-head .p-meta{text-align:right;font-size:10.5px;color:#333}
+  .p-head .p-mark{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#1f6f4a;font-weight:700}
+  table.p-tbl{width:100%;border-collapse:collapse}
+  .p-tbl th{background:#1f6f4a;color:#fff;font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.03em;text-align:left;padding:6px 7px;border:1px solid #1f6f4a}
+  .p-tbl td{padding:6px 7px;border:1px solid #cdd3cd;font-size:10px;vertical-align:top}
+  .p-tbl tr:nth-child(even) td{background:#f4f6f4}
+  .p-foot{margin-top:14px;padding-top:8px;border-top:1px solid #cdd3cd;
+    font-size:9px;color:#555;display:flex;justify-content:space-between}
+  .p-over{color:#7e1810;font-weight:700}
+  .p-crit{color:#c0392b;font-weight:700}
+}
+
+/* ---------- responsive ---------- */
+@media(max-width:780px){
+  .reg .hide-sm{display:none}
+  .pagehead h1{font-size:25px}
+  .period input{width:104px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== VOORDEUR ===================== -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <div class="gate-mark">
+      <span class="dot">I</span>
+      <span>Huurdersvereniging Brederode</span>
+    </div>
+    <h1>Invloedsregister</h1>
+    <p class="sub">Adviezen, meldingen en huurderssignalen — en wat ermee is afgesproken.</p>
+
+    <div class="field">
+      <label for="g-user">Gebruikersnaam</label>
+      <input id="g-user" autocomplete="username" placeholder="bv. lezer">
+    </div>
+    <div class="field">
+      <label for="g-pass">Wachtwoord</label>
+      <input id="g-pass" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-block" onclick="doLogin()">Inloggen</button>
+    <div id="g-err" class="gate-err"></div>
+
+    <div class="gate-foot">
+      <b>Demo-toegangen</b> (pas aan in <code>CONFIG.accounts</code>):<br>
+      <code>lezer / lezen</code> — raadplegen + PDF printen<br>
+      <code>bestuur / invoeren</code> — ook meldingen toevoegen/wijzigen<br>
+      <code>secretaris / beheer</code> — ook verwijderen / beheer
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="app hidden">
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot">I</span>
+      <div><b>Invloedsregister</b><small>Huurdersvereniging Brederode</small></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="whoami">
+      <span id="who-name"></span>
+      <span id="who-chip" class="chip"></span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Uitloggen</button>
+    </div>
+  </div>
+
+  <div class="pagehead">
+    <h1>Register</h1>
+    <p>Zodat adviezen en signalen niet blijven liggen: hier staat wie meldde, wie invoerde,
+       wat is afgesproken en hoeveel tijd er nog is tot de afgesproken einddatum.</p>
+  </div>
+
+  <div id="alerts"></div>
+
+  <div class="toolbar">
+    <div class="search">
+      <span class="mag">⌕</span>
+      <input id="q" placeholder="Zoeken in onderwerp, omschrijving, melder…" oninput="render()">
+    </div>
+    <div class="period" title="Periode voor de PDF-export (op melddatum)">
+      <label>Van</label>
+      <input id="p-from" type="date">
+      <span class="sep">→</span>
+      <label>t/m</label>
+      <input id="p-to" type="date">
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="printRange()">Print&nbsp;/&nbsp;PDF</button>
+    <button id="add-btn" class="btn btn-sm" onclick="openForm()">+ Nieuwe melding</button>
+  </div>
+
+  <div class="tablewrap">
+    <table class="reg">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Type</th>
+          <th>Onderwerp &amp; omschrijving</th>
+          <th class="hide-sm">Status</th>
+          <th>Deadline</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="empty" class="empty hidden">
+      <b>Nog niets gevonden</b>
+      Pas je zoekterm aan, of voeg een nieuwe melding toe.
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL ===================== -->
+<div id="overlay" class="overlay hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="m-title">Nieuwe melding</h2>
+      <button class="x" onclick="closeForm()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="field">
+          <label>Melddatum</label>
+          <input id="f-datum" type="date">
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <select id="f-type">
+            <option>Huurderssignaal</option>
+            <option>Advies</option>
+            <option>Melding</option>
+            <option>Vraag invloedsruimte</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Onderwerp</label>
+          <input id="f-onderwerp" placeholder="Korte titel">
+        </div>
+        <div class="field full">
+          <label>Korte omschrijving</label>
+          <textarea id="f-omschr" rows="2" placeholder="Wat speelt er?"></textarea>
+        </div>
+        <div class="field">
+          <label>Gemeld door</label>
+          <input id="f-melder" placeholder="Naam / commissie / bewoner(s)">
+        </div>
+        <div class="field">
+          <label>Ingevoerd door</label>
+          <input id="f-invoerder" placeholder="(jij)">
+        </div>
+        <div class="field full">
+          <label>Afspraak / vervolg</label>
+          <textarea id="f-afspraak" rows="2" placeholder="Wat is met de corporatie afgesproken over het vervolg?"></textarea>
+        </div>
+        <div class="field">
+          <label>Termijn</label>
+          <select id="f-termijn" onchange="syncEinddatum()">
+            <option value="">— geen termijn —</option>
+            <option value="1w">1 week</option>
+            <option value="2w">2 weken</option>
+            <option value="1m">1 maand</option>
+            <option value="1k">1 kwartaal</option>
+            <option value="2k">meerdere kwartalen</option>
+            <option value="1j">1 jaar</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Einddatum</label>
+          <input id="f-einddatum" type="date">
+          <div class="hint">Automatisch berekend uit melddatum + termijn. Aanpasbaar.</div>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="f-status">
+            <option>Geregistreerd</option>
+            <option>In behandeling</option>
+            <option>Toegezegd</option>
+            <option>Afgerond</option>
+            <option>Vervallen</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Betrokkenen (e-mail, komma-gescheiden)</label>
+          <input id="f-betrokkenen" placeholder="naam@…, naam@…">
+          <div class="hint">Ontvangen de deadline-alert (via de Sheet-backend).</div>
+        </div>
+        <div class="field full">
+          <label>Toelichting</label>
+          <textarea id="f-toelichting" rows="2" placeholder="Optioneel"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeForm()">Annuleren</button>
+      <button class="btn" onclick="saveForm()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PRINT-AREA ===================== -->
+<div id="print" class="print-area"></div>
+
+<script>
+/* ============================================================
+   CONFIG — pas hier accounts, titel en (optioneel) backend aan
+   ============================================================ */
+const CONFIG = {
+  appTitle:"Invloedsregister",
+  org:"Huurdersvereniging Brederode",
+  footer:"Huurdersvereniging Brederode · Bos en Duinlaan 2d · 2061 VP Bloemendaal · huurdersverenigingbrederode.nl",
+  alertDays:21,            // toon in 'Aandacht' wat ≤ dit aantal dagen tot deadline staat
+  alertFrac:0.8,           // …of waarvan de termijn voor ≥80% is verstreken
+  BACKEND_URL:"https://script.google.com/macros/s/AKfycby_gR5MDMj_5mPKTBUOdT1KCvy7rMfl2bph_n9839hJW5YnTHZ_szYbqNadTX-paALH/exec",          // leeg = lokaal (demo). Vul de Apps Script /exec-URL in voor de Sheet.
+  accounts:[
+    {user:"lezer",      pass:"lezen",    naam:"Meelezer",        rol:"lezer"},
+    {user:"bestuur",    pass:"invoeren", naam:"Bestuur HVB",     rol:"invoerder"},
+    {user:"secretaris", pass:"beheer",   naam:"Secretaris HVB",  rol:"beheerder"}
+  ]
+};
+const ROLLABEL = {lezer:"Lezer", invoerder:"Invoerder", beheerder:"Beheerder"};
+
+/* ---------- datum-helpers (NL dd-mm-jjjj <-> ISO) ---------- */
+function pad(n){return String(n).padStart(2,"0")}
+function isoToday(){const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+/* maakt elke datumwaarde (ISO, dd-mm-jjjj, Date-object of Date.toString) tot 'yyyy-mm-dd' */
+function toIso(v){
+  if(!v) return "";
+  if(v instanceof Date) return isNaN(v)?"":v.getFullYear()+"-"+pad(v.getMonth()+1)+"-"+pad(v.getDate());
+  const s=String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;                                   // al ISO
+  let m=s.match(/^(\d{1,2})\s*-\s*(\d{1,2})\s*-\s*(\d{4})$/);                    // dd-mm-jjjj
+  if(m) return m[3]+"-"+pad(m[1])+"-"+pad(m[2]);
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);                                  // dd/mm/jjjj
+  if(m) return m[3]+"-"+pad(m[2])+"-"+pad(m[1]);
+  const d=new Date(s);                                                          // bv. een Date.toString()
+  return isNaN(d)?"":d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+}
+function isoToNl(v){const iso=toIso(v);if(!iso)return"";const[y,m,d]=iso.split("-");return d+"-"+m+"-"+y}
+function nlToIso(nl){if(!nl)return"";const p=nl.replace(/\s/g,"").split("-");return p.length===3?p[2]+"-"+p[1]+"-"+p[0]:""}
+function parseIso(iso){if(!iso)return null;const[y,m,d]=iso.split("-").map(Number);return new Date(y,m-1,d)}
+function addDays(iso,n){const d=parseIso(iso);d.setDate(d.getDate()+n);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function addMonths(iso,n){const d=parseIso(iso);d.setMonth(d.getMonth()+n);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function daysBetween(a,b){return Math.round((parseIso(b)-parseIso(a))/86400000)}
+
+function termijnToEind(startIso,termijn){
+  if(!startIso||!termijn)return"";
+  switch(termijn){
+    case"1w":return addDays(startIso,7);
+    case"2w":return addDays(startIso,14);
+    case"1m":return addMonths(startIso,1);
+    case"1k":return addMonths(startIso,3);
+    case"2k":return addMonths(startIso,6);
+    case"1j":return addMonths(startIso,12);
+    default:return"";
+  }
+}
+
+/* ---------- deadline-berekening ---------- */
+function deadlineInfo(rec){
+  if(!rec.einddatum) return {state:"none",label:"geen einddatum",end:"",frac:0,days:null};
+  const today=isoToday();
+  const total=Math.max(1,daysBetween(rec.datum,rec.einddatum));
+  const elapsed=daysBetween(rec.datum,today);
+  const frac=Math.min(1,Math.max(0,elapsed/total));
+  const days=daysBetween(today,rec.einddatum);   // + = nog te gaan, - = verlopen
+  let state;
+  if(days<0)        state="over";
+  else if(frac>=.8) state="crit";
+  else if(frac>=.5) state="warn";
+  else              state="ok";
+  return {state,label:remainLabel(days),end:isoToNl(rec.einddatum),frac,days};
+}
+function remainLabel(days){
+  if(days<0){const a=Math.abs(days);return a+" "+(a===1?"dag":"dagen")+" verlopen"}
+  if(days===0) return "vandaag de deadline";
+  if(days<14)  return "nog "+days+" "+(days===1?"dag":"dagen");
+  if(days<70){const w=Math.floor(days/7),r=days%7;return "nog "+w+" "+(w===1?"week":"weken")+(r?", "+r+" d":"")}
+  const m=Math.round(days/30.44);return "nog ± "+m+" maanden";
+}
+
+/* ============================================================
+   DATA — lokaal (demo). Met BACKEND_URL praat dit met de Sheet.
+   ============================================================ */
+let DATA=[];
+let _id=0; const nid=()=>"r"+(++_id);
+
+const SEED=[
+  // -- echte rijen uit de Sheet --
+  {id:nid(),datum:"2026-06-13",type:"Huurderssignaal",onderwerp:"Uitstel verduurzamingstraject",
+   omschrijving:"Bewoners geven aan onzeker te zijn over de planning van het verduurzamingstraject.",
+   melder:"Bewonerscommissie blok A",invoerder:"Liselot",
+   afspraak:"Corporatie komt vóór 1 sept met een onderbouwd tijdpad.",
+   termijn:"1k",einddatum:"2026-09-13",status:"Geregistreerd",
+   betrokkenen:"secretaris@hvb.nl",toelichting:""},
+  {id:nid(),datum:"2026-06-13",type:"Huurderssignaal",onderwerp:"Kwaliteit schilderwerk",
+   omschrijving:"Bewoners melden dat schilderwerk onzorgvuldig is uitgevoerd: onderdelen zijn vergeten en er is over aanslag heen geschilderd zonder goede voorbereiding/schoonmaak van de ondergrond.",
+   melder:"Diverse bewoners Bos en Duinlaan",invoerder:"Hellen",
+   afspraak:"Opzichter neemt herstelpunten op; terugkoppeling gevraagd.",
+   termijn:"2w",einddatum:"2026-06-27",status:"In behandeling",
+   betrokkenen:"secretaris@hvb.nl",toelichting:""},
+  // -- voorbeeldrijen (laten zien hoe de balk kleurt) — verwijderbaar --
+  {id:nid(),datum:"2026-05-28",type:"Melding",onderwerp:"Voorbeeld — Schoonmaak algemene ruimten",
+   omschrijving:"Frequentie schoonmaak portieken voldoet niet aan afspraken.",
+   melder:"Bewoner nr. 14",invoerder:"Bestuur",
+   afspraak:"Corporatie checkt contract met schoonmaakbedrijf.",
+   termijn:"1m",einddatum:"2026-06-28",status:"Toegezegd",betrokkenen:"",toelichting:""},
+  {id:nid(),datum:"2026-05-20",type:"Advies",onderwerp:"Voorbeeld — Reactie servicekostenafrekening",
+   omschrijving:"Advies HVB op de concept-afrekening servicekosten.",
+   melder:"HVB bestuur",invoerder:"Liselot",
+   afspraak:"Schriftelijke reactie corporatie toegezegd.",
+   termijn:"1m",einddatum:"2026-06-20",status:"In behandeling",betrokkenen:"",toelichting:""},
+  {id:nid(),datum:"2026-05-02",type:"Melding",onderwerp:"Voorbeeld — Toezegging herstel lift",
+   omschrijving:"Lift blok C herhaaldelijk buiten dienst.",
+   melder:"Bewoners blok C",invoerder:"Hellen",
+   afspraak:"Reparatie binnen een maand toegezegd.",
+   termijn:"1m",einddatum:"2026-06-02",status:"Toegezegd",betrokkenen:"",toelichting:""}
+];
+
+/* veilige lokale opslag (faalt stil in sandbox) */
+function loadLocal(){
+  try{const raw=localStorage.getItem("hvb_register");if(raw){DATA=JSON.parse(raw);
+    _id=DATA.reduce((m,r)=>Math.max(m,+String(r.id).replace(/\D/g,"")||0),0);return}}catch(e){}
+  DATA=JSON.parse(JSON.stringify(SEED));
+}
+function saveLocal(){try{localStorage.setItem("hvb_register",JSON.stringify(DATA))}catch(e){}}
+
+/* backend-hooks (gebruikt alleen als CONFIG.BACKEND_URL is gevuld) */
+async function backendLoad(){
+  const r=await fetch(CONFIG.BACKEND_URL+"?action=list");return (await r.json()).rows||[];
+}
+async function backendSave(rec){
+  await fetch(CONFIG.BACKEND_URL,{method:"POST",headers:{"Content-Type":"text/plain"},
+    body:JSON.stringify({action:"save",row:rec})});
+}
+async function backendDelete(id){
+  await fetch(CONFIG.BACKEND_URL,{method:"POST",headers:{"Content-Type":"text/plain"},
+    body:JSON.stringify({action:"delete",id})});
+}
+
+/* ============================================================
+   AUTH — voordeur (rolbepaling, geen beveiliging)
+   ============================================================ */
+let SESSION=null;
+function doLogin(){
+  const u=document.getElementById("g-user").value.trim().toLowerCase();
+  const p=document.getElementById("g-pass").value;
+  const acc=CONFIG.accounts.find(a=>a.user===u&&a.pass===p);
+  if(!acc){document.getElementById("g-err").textContent="Onjuiste gebruikersnaam of wachtwoord.";return}
+  SESSION=acc;
+  document.getElementById("gate").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("who-name").textContent=acc.naam;
+  const chip=document.getElementById("who-chip");
+  chip.textContent=ROLLABEL[acc.rol];chip.className="chip "+acc.rol;
+  // rol-gating
+  document.getElementById("add-btn").style.display=can("edit")?"":"none";
+  start();
+}
+function doLogout(){
+  SESSION=null;
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("gate").classList.remove("hidden");
+  document.getElementById("g-pass").value="";
+  document.getElementById("g-err").textContent="";
+}
+function can(what){
+  if(!SESSION)return false;
+  if(what==="edit")  return SESSION.rol==="invoerder"||SESSION.rol==="beheerder";
+  if(what==="delete")return SESSION.rol==="beheerder";
+  return false;
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+async function start(){
+  if(CONFIG.BACKEND_URL){try{DATA=await backendLoad()}catch(e){loadLocal()}}
+  else loadLocal();
+  DATA.forEach(r=>{r.datum=toIso(r.datum);r.einddatum=toIso(r.einddatum)});  // datums opschonen
+  // periode-defaults: vroegste melddatum t/m vandaag
+  const dates=DATA.map(r=>r.datum).filter(Boolean).sort();
+  document.getElementById("p-from").value=dates[0]||isoToday();
+  document.getElementById("p-to").value=isoToday();
+  render();
+}
+
+function filtered(){
+  const q=document.getElementById("q").value.trim().toLowerCase();
+  let rows=DATA.slice().sort((a,b)=>(b.datum||"").localeCompare(a.datum||""));
+  if(q){rows=rows.filter(r=>[r.onderwerp,r.omschrijving,r.melder,r.invoerder,r.type,r.afspraak,r.status]
+    .join(" ").toLowerCase().includes(q))}
+  return rows;
+}
+
+function render(){
+  const rows=filtered();
+  renderAlerts();
+  const tb=document.getElementById("tbody");
+  tb.innerHTML="";
+  document.getElementById("empty").classList.toggle("hidden",rows.length>0);
+  for(const r of rows){
+    const dl=deadlineInfo(r);
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td style="white-space:nowrap">${isoToNl(r.datum)}</td>
+      <td>${typeTag(r.type)}</td>
+      <td>
+        <div class="t-onderwerp">${esc(r.onderwerp)}</div>
+        <div class="t-omschr">${esc(r.omschrijving)}</div>
+        <div class="t-meta">Gemeld door <b>${esc(r.melder||"—")}</b> · ingevoerd door <b>${esc(r.invoerder||"—")}</b>${r.afspraak?` · <b>afspraak:</b> ${esc(r.afspraak)}`:""}</div>
+      </td>
+      <td class="hide-sm">${statusTag(r.status)}</td>
+      <td>${deadlineCell(dl)}</td>
+      <td>${rowActions(r)}</td>`;
+    tb.appendChild(tr);
+  }
+}
+function deadlineCell(dl){
+  if(dl.state==="none") return `<div class="dl is-none"><div class="txt">geen einddatum</div></div>`;
+  const w=Math.max(2,Math.round(dl.frac*100));
+  return `<div class="dl is-${dl.state}">
+    <div class="bar"><i style="width:${w}%"></i></div>
+    <div class="txt">${dl.label}</div>
+    <div class="end">einddatum ${dl.end}</div></div>`;
+}
+function rowActions(r){
+  let h='<div class="rowact">';
+  if(can("edit"))   h+=`<button class="iconbtn" title="Wijzigen" onclick="openForm('${r.id}')">✎</button>`;
+  if(can("delete")) h+=`<button class="iconbtn" title="Verwijderen" onclick="delRow('${r.id}')">🗑</button>`;
+  return h+"</div>";
+}
+function typeTag(t){
+  const k={"Huurderssignaal":"signaal","Advies":"advies","Melding":"melding","Vraag invloedsruimte":"vraag"}[t]||"melding";
+  return `<span class="tag ${k}">${esc(t)}</span>`;
+}
+function statusTag(s){
+  const k={"Geregistreerd":"geregistreerd","In behandeling":"behandeling","Toegezegd":"toegezegd","Afgerond":"afgerond","Vervallen":"vervallen"}[s]||"geregistreerd";
+  return `<span class="status ${k}">${esc(s)}</span>`;
+}
+function esc(s){return String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function renderAlerts(){
+  const box=document.getElementById("alerts");box.innerHTML="";
+  const near=DATA.map(r=>({r,dl:deadlineInfo(r)}))
+    .filter(x=>x.dl.state!=="none" && x.r.status!=="Afgerond" && x.r.status!=="Vervallen"
+      && (x.dl.state==="over" || x.dl.days<=CONFIG.alertDays || x.dl.frac>=CONFIG.alertFrac))
+    .sort((a,b)=>a.dl.days-b.dl.days);
+  if(!near.length)return;
+  const anyOver=near.some(x=>x.dl.state==="over");
+  const div=document.createElement("div");
+  div.className="alertbar"+(anyOver?" is-crit":"");
+  div.innerHTML=`<div class="ico">!</div><div>
+    <b>Aandacht — ${near.length} ${near.length===1?"melding nadert":"meldingen naderen"} de deadline.</b>
+    <ul>${near.map(x=>`<li>${esc(x.r.onderwerp)} — <b>${x.dl.label}</b> (einddatum ${x.dl.end})</li>`).join("")}</ul>
+  </div>`;
+  box.appendChild(div);
+}
+
+/* ============================================================
+   FORM
+   ============================================================ */
+let EDIT_ID=null;
+function openForm(id){
+  if(!can("edit"))return;
+  EDIT_ID=id||null;
+  const r=id?DATA.find(x=>x.id===id):null;
+  document.getElementById("m-title").textContent=r?"Melding wijzigen":"Nieuwe melding";
+  set("f-datum",r?r.datum:isoToday());
+  set("f-type",r?r.type:"Huurderssignaal");
+  set("f-onderwerp",r?r.onderwerp:"");
+  set("f-omschr",r?r.omschrijving:"");
+  set("f-melder",r?r.melder:"");
+  set("f-invoerder",r?r.invoerder:(SESSION?SESSION.naam:""));
+  set("f-afspraak",r?r.afspraak:"");
+  set("f-termijn",r?r.termijn:"");
+  set("f-einddatum",r?r.einddatum:"");
+  set("f-status",r?r.status:"Geregistreerd");
+  set("f-betrokkenen",r?r.betrokkenen:"");
+  set("f-toelichting",r?r.toelichting:"");
+  document.getElementById("overlay").classList.remove("hidden");
+}
+function closeForm(){document.getElementById("overlay").classList.add("hidden");EDIT_ID=null}
+function set(id,v){document.getElementById(id).value=v||""}
+function get(id){return document.getElementById(id).value}
+function syncEinddatum(){
+  const eind=termijnToEind(get("f-datum"),get("f-termijn"));
+  if(eind)set("f-einddatum",eind);
+}
+async function saveForm(){
+  const onderwerp=get("f-onderwerp").trim();
+  if(!onderwerp){alert("Geef een onderwerp op.");return}
+  const rec={
+    id:EDIT_ID||nid(),
+    datum:get("f-datum"),type:get("f-type"),onderwerp,
+    omschrijving:get("f-omschr").trim(),melder:get("f-melder").trim(),
+    invoerder:get("f-invoerder").trim(),afspraak:get("f-afspraak").trim(),
+    termijn:get("f-termijn"),einddatum:get("f-einddatum"),
+    status:get("f-status"),betrokkenen:get("f-betrokkenen").trim(),
+    toelichting:get("f-toelichting").trim()
+  };
+  if(EDIT_ID){const i=DATA.findIndex(x=>x.id===EDIT_ID);DATA[i]=rec}
+  else DATA.unshift(rec);
+  if(CONFIG.BACKEND_URL){try{await backendSave(rec)}catch(e){}}else saveLocal();
+  closeForm();render();
+}
+async function delRow(id){
+  if(!can("delete"))return;
+  const r=DATA.find(x=>x.id===id);
+  if(!confirm(`Melding "${r?r.onderwerp:""}" verwijderen?`))return;
+  DATA=DATA.filter(x=>x.id!==id);
+  if(CONFIG.BACKEND_URL){try{await backendDelete(id)}catch(e){}}else saveLocal();
+  render();
+}
+
+/* ============================================================
+   PRINT / PDF — periode [van] t/m [t/m], op melddatum
+   ============================================================ */
+function printRange(){
+  const from=document.getElementById("p-from").value;
+  const to=document.getElementById("p-to").value;
+  const rows=DATA.filter(r=>(!from||r.datum>=from)&&(!to||r.datum<=to))
+    .sort((a,b)=>(a.datum||"").localeCompare(b.datum||""));
+  const head=`
+    <div class="p-head">
+      <div>
+        <div class="p-mark">${esc(CONFIG.org)}</div>
+        <h1>${esc(CONFIG.appTitle)}</h1>
+      </div>
+      <div class="p-meta">
+        Overzicht periode<br><b>${from?isoToNl(from):"begin"} t/m ${to?isoToNl(to):"heden"}</b><br>
+        Gegenereerd op ${isoToNl(isoToday())} · ${rows.length} ${rows.length===1?"melding":"meldingen"}
+      </div>
+    </div>`;
+  const body=rows.length?`
+    <table class="p-tbl"><thead><tr>
+      <th>Datum</th><th>Type</th><th>Onderwerp</th><th>Omschrijving</th>
+      <th>Gemeld door</th><th>Ingevoerd</th><th>Afspraak / vervolg</th>
+      <th>Status</th><th>Einddatum</th><th>Resterend</th>
+    </tr></thead><tbody>
+    ${rows.map(r=>{const d=deadlineInfo(r);
+      const cls=d.state==="over"?"p-over":d.state==="crit"?"p-crit":"";
+      return `<tr>
+        <td style="white-space:nowrap">${isoToNl(r.datum)}</td>
+        <td>${esc(r.type)}</td>
+        <td><b>${esc(r.onderwerp)}</b></td>
+        <td>${esc(r.omschrijving)}</td>
+        <td>${esc(r.melder||"—")}</td>
+        <td>${esc(r.invoerder||"—")}</td>
+        <td>${esc(r.afspraak||"—")}</td>
+        <td>${esc(r.status)}</td>
+        <td style="white-space:nowrap">${d.end||"—"}</td>
+        <td class="${cls}" style="white-space:nowrap">${d.state==="none"?"—":d.label}</td>
+      </tr>`}).join("")}
+    </tbody></table>`
+    :`<p style="padding:20px;color:#555">Geen meldingen in deze periode.</p>`;
+  const foot=`<div class="p-foot"><span>${esc(CONFIG.footer)}</span><span>Pagina’s automatisch genummerd door de browser</span></div>`;
+  document.getElementById("print").innerHTML=head+body+foot;
+  window.print();
+}
+
+/* ---------- init ---------- */
+document.getElementById("g-pass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+document.getElementById("g-user").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("g-pass").focus()});
+</script>
+</body>
+</html>
