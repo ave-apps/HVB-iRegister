@@ -508,7 +508,7 @@ function remainLabel(days){
    DATA — lokaal (demo). Met BACKEND_URL praat dit met de Sheet.
    ============================================================ */
 let DATA=[];
-let _id=0; const nid=()=>"r"+(++_id);
+let _id=0; const nid=()=>"r"+Date.now().toString(36)+(++_id).toString(36)+Math.random().toString(36).slice(2,5);
 
 const SEED=[
   // -- echte rijen uit de Sheet --
