@@ -313,21 +313,16 @@ table.reg{width:100%;border-collapse:collapse;min-width:680px}
     <p class="sub">Adviezen, meldingen en huurderssignalen — en wat ermee is afgesproken.</p>
 
     <div class="field">
-      <label for="g-user">Gebruikersnaam</label>
-      <input id="g-user" autocomplete="username" placeholder="bv. lezer">
+      <label for="g-pin">Pincode</label>
+      <input id="g-pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
+             maxlength="8" placeholder="••••" style="letter-spacing:.3em;font-size:18px;text-align:center">
     </div>
-    <div class="field">
-      <label for="g-pass">Wachtwoord</label>
-      <input id="g-pass" type="password" autocomplete="current-password" placeholder="••••••••">
-    </div>
-    <button class="btn btn-block" onclick="doLogin()">Inloggen</button>
+    <button class="btn btn-block" id="g-btn" onclick="doLogin()">Inloggen</button>
     <div id="g-err" class="gate-err"></div>
 
     <div class="gate-foot">
-      <b>Demo-toegangen</b> (pas aan in <code>CONFIG.accounts</code>):<br>
-      <code>lezer / lezen</code> — raadplegen + PDF printen<br>
-      <code>bestuur / invoeren</code> — ook meldingen toevoegen/wijzigen<br>
-      <code>secretaris / beheer</code> — ook verwijderen / beheer
+      Vul je pincode in. Je rechten (raadplegen, invoeren of beheren) volgen uit de code.
+      Geen code? Vraag het bestuur van de Huurdersvereniging.
     </div>
   </div>
 </div>
@@ -503,11 +498,13 @@ const CONFIG = {
   alertDays:21,            // toon in 'Aandacht' wat ≤ dit aantal dagen tot deadline staat
   alertFrac:0.8,           // …of waarvan de termijn voor ≥80% is verstreken
   BACKEND_URL:"https://script.google.com/macros/s/AKfycby_gR5MDMj_5mPKTBUOdT1KCvy7rMfl2bph_n9839hJW5YnTHZ_szYbqNadTX-paALH/exec",  // ← CONTROLEER tegen je huidige index.html; 1 teken fout = "Sheet niet bereikbaar"
-  accounts:[
-    {user:"lezer",      pass:"lezen",    naam:"Meelezer",        rol:"lezer"},
-    {user:"bestuur",    pass:"invoeren", naam:"Bestuur HVB",     rol:"invoerder"},
-    {user:"secretaris", pass:"beheer",   naam:"Secretaris HVB",  rol:"beheerder"}
+  // pincode per rol (numeriek). Geef elke rol z'n eigen code.
+  pins:[
+    {pin:"1235", naam:"Meelezer",       rol:"lezer"},       // raadplegen + PDF
+    {pin:"2513", naam:"Bestuur HVB",    rol:"invoerder"},    // ook toevoegen/wijzigen
+    {pin:"3152", naam:"Secretaris HVB", rol:"beheerder"}     // ook verwijderen / beheer
   ],
+  maxPogingen:3,           // blokkeer de voordeur na dit aantal foute pincodes
   // categorieën per melding (meervoudig aan te vinken). Pas vrij aan.
   categories:[
     {key:"onderhoud-klein", label:"Onderhoud klein",        tip:"Dagelijks/klein onderhoud, losse reparatieverzoeken"},
@@ -646,11 +643,26 @@ async function backendDelete(id){
    AUTH — voordeur (rolbepaling, geen beveiliging)
    ============================================================ */
 let SESSION=null;
+let _pogingen=0;
 function doLogin(){
-  const u=document.getElementById("g-user").value.trim().toLowerCase();
-  const p=document.getElementById("g-pass").value;
-  const acc=CONFIG.accounts.find(a=>a.user===u&&a.pass===p);
-  if(!acc){document.getElementById("g-err").textContent="Onjuiste gebruikersnaam of wachtwoord.";return}
+  if(_pogingen>=CONFIG.maxPogingen) return;
+  const code=document.getElementById("g-pin").value.trim();
+  const acc=CONFIG.pins.find(a=>a.pin===code);
+  if(!acc){
+    _pogingen++;
+    const over=CONFIG.maxPogingen-_pogingen;
+    if(over<=0){
+      document.getElementById("g-err").textContent="Te veel foute pogingen. Herlaad de pagina om het opnieuw te proberen.";
+      document.getElementById("g-pin").disabled=true;
+      document.getElementById("g-btn").disabled=true;
+    } else {
+      document.getElementById("g-err").textContent=`Onjuiste pincode. Nog ${over} ${over===1?"poging":"pogingen"}.`;
+      document.getElementById("g-pin").value="";
+      document.getElementById("g-pin").focus();
+    }
+    return;
+  }
+  _pogingen=0;
   SESSION=acc;
   document.getElementById("gate").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
@@ -665,7 +677,7 @@ function doLogout(){
   SESSION=null;
   document.getElementById("app").classList.add("hidden");
   document.getElementById("gate").classList.remove("hidden");
-  document.getElementById("g-pass").value="";
+  document.getElementById("g-pin").value="";
   document.getElementById("g-err").textContent="";
 }
 function can(what){
@@ -1022,8 +1034,7 @@ function printRange(){
 }
 
 /* ---------- init ---------- */
-document.getElementById("g-pass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
-document.getElementById("g-user").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("g-pass").focus()});
+document.getElementById("g-pin").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
 </script>
 </body>
 </html>
