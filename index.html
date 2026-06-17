@@ -177,6 +177,36 @@ table.reg{width:100%;border-collapse:collapse}
 .status.afgerond{background:#e6e9e6;color:#4a544e}
 .status.vervallen{background:#efe6e6;color:#7a5b5b}
 
+/* categorie-labels in de rij */
+.cats{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+.cat{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;
+  background:var(--brand-tint);color:var(--brand-dark);cursor:help}
+
+/* categorie-vinkjes in het formulier */
+.catgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;margin-top:4px}
+.catgrid label{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:400;
+  text-transform:none;letter-spacing:0;color:var(--ink);cursor:pointer;margin:0}
+.catgrid input{width:16px;height:16px;accent-color:var(--brand);flex:0 0 auto}
+
+/* categorie-filter (klik-chips) */
+.catfilter{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px;align-items:center}
+.catfilter .lbl{font-size:12px;color:var(--ink-soft);font-weight:600;margin-right:2px}
+.fchip{font-size:12px;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:all .12s}
+.fchip:hover{border-color:var(--brand);color:var(--brand-dark)}
+.fchip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* selectiebalk */
+.selbar{display:flex;align-items:center;gap:12px;margin:0 0 14px;font-size:13px;color:var(--ink-soft);min-height:20px}
+.selbar.empty{display:none}
+.selbar b{color:var(--ink)}
+.selbar .link{color:var(--brand);font-weight:600;cursor:pointer}
+.selbar .link:hover{text-decoration:underline}
+
+/* selectiekolom */
+.reg th.selcol,.reg td.selcol{width:38px;text-align:center;padding-left:12px;padding-right:0}
+.reg td.selcol input,.reg th.selcol input{width:16px;height:16px;accent-color:var(--brand);cursor:pointer}
+
 /* deadline cell */
 .dl{min-width:150px}
 .dl .bar{height:8px;border-radius:999px;background:#edefed;overflow:hidden;margin-bottom:5px}
@@ -307,7 +337,7 @@ table.reg{width:100%;border-collapse:collapse}
       <span class="mag">⌕</span>
       <input id="q" placeholder="Zoeken in onderwerp, omschrijving, melder…" oninput="render()">
     </div>
-    <div class="period" title="Periode voor de PDF-export (op melddatum)">
+    <div class="period" title="Periode voor de Print/PDF (op melddatum) — geldt als je niets aanvinkt">
       <label>Van</label>
       <input id="p-from" type="date">
       <span class="sep">→</span>
@@ -315,14 +345,18 @@ table.reg{width:100%;border-collapse:collapse}
       <input id="p-to" type="date">
     </div>
     <button id="reload-btn" class="btn btn-ghost btn-sm" onclick="manualReload()" style="display:none">↻ Herladen uit Sheet</button>
-    <button class="btn btn-ghost btn-sm" onclick="printRange()">Print&nbsp;/&nbsp;PDF</button>
+    <button class="btn btn-ghost btn-sm" onclick="printRange()" title="Print de aangevinkte regels, of (als je niets aanvinkt) het periode-overzicht">Print&nbsp;/&nbsp;PDF</button>
     <button id="add-btn" class="btn btn-sm" onclick="openForm()">+ Nieuwe melding</button>
   </div>
+
+  <div id="catfilter" class="catfilter"></div>
+  <div id="selbar" class="selbar"></div>
 
   <div class="tablewrap">
     <table class="reg">
       <thead>
         <tr>
+          <th class="selcol"><input type="checkbox" id="sel-all" onclick="toggleSelectAll(this.checked)" title="Alles op deze weergave (de)selecteren"></th>
           <th class="sortable" data-sort="datum" onclick="setSort('datum')">Datum <span class="caret"></span></th>
           <th class="sortable" data-sort="type" onclick="setSort('type')">Type <span class="caret"></span></th>
           <th class="sortable" data-sort="onderwerp" onclick="setSort('onderwerp')">Onderwerp &amp; omschrijving <span class="caret"></span></th>
@@ -369,6 +403,10 @@ table.reg{width:100%;border-collapse:collapse}
         <div class="field full">
           <label>Korte omschrijving</label>
           <textarea id="f-omschr" rows="2" placeholder="Wat speelt er?"></textarea>
+        </div>
+        <div class="field full">
+          <label>Categorie(ën) <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">— vink aan wat van toepassing is</span></label>
+          <div id="f-cats" class="catgrid"></div>
         </div>
         <div class="field">
           <label>Gemeld door</label>
@@ -445,6 +483,19 @@ const CONFIG = {
     {user:"lezer",      pass:"lezen",    naam:"Meelezer",        rol:"lezer"},
     {user:"bestuur",    pass:"invoeren", naam:"Bestuur HVB",     rol:"invoerder"},
     {user:"secretaris", pass:"beheer",   naam:"Secretaris HVB",  rol:"beheerder"}
+  ],
+  // categorieën per melding (meervoudig aan te vinken). Pas vrij aan.
+  categories:[
+    {key:"onderhoud-klein", label:"Onderhoud klein",        tip:"Dagelijks/klein onderhoud, losse reparatieverzoeken"},
+    {key:"onderhoud-groot", label:"Onderhoud groot",        tip:"Groot onderhoud, MJOP, renovatie, vervanging"},
+    {key:"bouwkundig",      label:"Bouwkundige staat",      tip:"Constructie, fundering, vocht/schimmel, asbest"},
+    {key:"energie",         label:"Energie & duurzaamheid", tip:"Energielabel, isolatie, verwarming, aardgasvrij, zonnepanelen"},
+    {key:"huur",            label:"Huur & servicekosten",   tip:"Kale huur, servicekosten, WWS-punten, huurverhoging"},
+    {key:"toegankelijk",    label:"Toegankelijkheid",       tip:"Nultreden, lift, rollator-/rolstoelgeschikt"},
+    {key:"leefbaarheid",    label:"Leefbaarheid & overlast",tip:"Schoon/heel/veilig, overlast, woonomgeving"},
+    {key:"communicatie",    label:"Communicatie & proces",  tip:"Bereikbaarheid, afspraken nakomen, informatievoorziening"},
+    {key:"juridisch",       label:"Juridisch & contract",   tip:"Huurcontract, VvE, erfpacht, geschillen"},
+    {key:"overig",          label:"Overig",                 tip:"Valt buiten bovenstaande categorieën"}
   ]
 };
 const ROLLABEL = {lezer:"Lezer", invoerder:"Invoerder", beheerder:"Beheerder"};
@@ -521,13 +572,13 @@ const SEED=[
    melder:"Bewonerscommissie blok A",invoerder:"Liselot",
    afspraak:"Corporatie komt vóór 1 sept met een onderbouwd tijdpad.",
    termijn:"1k",einddatum:"2026-09-13",status:"Geregistreerd",
-   betrokkenen:"secretaris@hvb.nl",toelichting:""},
+   betrokkenen:"secretaris@hvb.nl",toelichting:"",categorieen:"energie,communicatie"},
   {id:nid(),datum:"2026-06-13",type:"Huurderssignaal",onderwerp:"Kwaliteit schilderwerk",
    omschrijving:"Bewoners melden dat schilderwerk onzorgvuldig is uitgevoerd: onderdelen zijn vergeten en er is over aanslag heen geschilderd zonder goede voorbereiding/schoonmaak van de ondergrond.",
    melder:"Diverse bewoners Bos en Duinlaan",invoerder:"Hellen",
    afspraak:"Opzichter neemt herstelpunten op; terugkoppeling gevraagd.",
    termijn:"2w",einddatum:"2026-06-27",status:"In behandeling",
-   betrokkenen:"secretaris@hvb.nl",toelichting:""},
+   betrokkenen:"secretaris@hvb.nl",toelichting:"",categorieen:"onderhoud-klein,bouwkundig"},
   // -- voorbeeldrijen (laten zien hoe de balk kleurt) — verwijderbaar --
   {id:nid(),datum:"2026-05-28",type:"Melding",onderwerp:"Voorbeeld — Schoonmaak algemene ruimten",
    omschrijving:"Frequentie schoonmaak portieken voldoet niet aan afspraken.",
@@ -694,17 +745,29 @@ function updateSortCarets(){
   });
 }
 
+/* ---------- categorie- en selectiehulp ---------- */
+const CAT_BY_KEY = Object.fromEntries(CONFIG.categories.map(c=>[c.key,c]));
+function catKeys(r){ return String(r.categorieen||"").split(",").map(s=>s.trim()).filter(Boolean); }
+function catLabel(k){ return (CAT_BY_KEY[k]||{}).label || k; }
+function catTip(k){ return (CAT_BY_KEY[k]||{}).tip || ""; }
+
+let CATFILTER = new Set();   // actieve categoriefilters (OR-logica)
+let SEL = new Set();         // geselecteerde record-id's (voor Print/PDF)
+
 function filtered(){
   const q=document.getElementById("q").value.trim().toLowerCase();
   let rows=DATA.slice();
-  if(q){rows=rows.filter(r=>[r.onderwerp,r.omschrijving,r.melder,r.invoerder,r.type,r.afspraak,r.status]
-    .join(" ").toLowerCase().includes(q))}
+  if(q){rows=rows.filter(r=>[r.onderwerp,r.omschrijving,r.melder,r.invoerder,r.type,r.afspraak,r.status,
+      ...catKeys(r).map(catLabel)].join(" ").toLowerCase().includes(q))}
+  if(CATFILTER.size){ rows=rows.filter(r=> catKeys(r).some(k=>CATFILTER.has(k))); }
   return sortRows(rows);
 }
 
 function render(){
+  SEL.forEach(id=>{ if(!DATA.some(r=>r.id===id)) SEL.delete(id); });  // opgeschoonde selectie
   const rows=filtered();
   renderAlerts();
+  renderCatFilter();
   updateSortCarets();
   const tb=document.getElementById("tbody");
   tb.innerHTML="";
@@ -712,19 +775,55 @@ function render(){
   for(const r of rows){
     const dl=deadlineInfo(r);
     const tr=document.createElement("tr");
+    const checked = SEL.has(r.id) ? "checked" : "";
     tr.innerHTML=`
+      <td class="selcol"><input type="checkbox" class="rowsel" ${checked} onclick="toggleSel('${r.id}',this.checked)"></td>
       <td style="white-space:nowrap">${isoToNl(r.datum)}</td>
       <td>${typeTag(r.type)}</td>
       <td>
         <div class="t-onderwerp">${esc(r.onderwerp)}</div>
         <div class="t-omschr">${esc(r.omschrijving)}</div>
         <div class="t-meta">Gemeld door <b>${esc(r.melder||"—")}</b> · ingevoerd door <b>${esc(r.invoerder||"—")}</b>${r.afspraak?` · <b>afspraak:</b> ${esc(r.afspraak)}`:""}</div>
+        ${catChips(r)}
       </td>
       <td class="hide-sm">${statusTag(r.status)}</td>
       <td>${deadlineCell(dl)}</td>
       <td>${rowActions(r)}</td>`;
     tb.appendChild(tr);
   }
+  const allSel = rows.length>0 && rows.every(r=>SEL.has(r.id));
+  const sa=document.getElementById("sel-all"); if(sa) sa.checked=allSel;
+  renderSelBar();
+}
+function catChips(r){
+  const ks=catKeys(r); if(!ks.length) return "";
+  return `<div class="cats">${ks.map(k=>`<span class="cat" title="${esc(catTip(k))}">${esc(catLabel(k))}</span>`).join("")}</div>`;
+}
+
+/* categoriefilter (klik-chips boven de tabel) */
+function renderCatFilter(){
+  const el=document.getElementById("catfilter"); if(!el) return;
+  el.innerHTML = `<span class="lbl">Filter op categorie:</span>`
+    + CONFIG.categories.map(c=>`<span class="fchip ${CATFILTER.has(c.key)?"on":""}" title="${esc(c.tip)}" onclick="toggleCatFilter('${c.key}')">${esc(c.label)}</span>`).join("")
+    + (CATFILTER.size?`<span class="fchip" onclick="clearCatFilter()" style="border-style:dashed">× wis filter</span>`:"");
+}
+function toggleCatFilter(k){ CATFILTER.has(k)?CATFILTER.delete(k):CATFILTER.add(k); render(); }
+function clearCatFilter(){ CATFILTER.clear(); render(); }
+
+/* selectie voor Print/PDF */
+function toggleSel(id,on){ if(on)SEL.add(id); else SEL.delete(id); render(); }
+function toggleSelectAll(on){
+  const rows=filtered();
+  if(on) rows.forEach(r=>SEL.add(r.id)); else rows.forEach(r=>SEL.delete(r.id));
+  render();
+}
+function clearSel(){ SEL.clear(); render(); }
+function renderSelBar(){
+  const el=document.getElementById("selbar"); if(!el) return;
+  const n=SEL.size;
+  if(!n){ el.className="selbar empty"; el.innerHTML=""; return; }
+  el.className="selbar";
+  el.innerHTML = `<b>${n}</b> aangevinkt — Print/PDF toont alléén deze · <span class="link" onclick="clearSel()">selectie wissen</span>`;
 }
 function deadlineCell(dl){
   if(dl.state==="none") return `<div class="dl is-none"><div class="txt">geen einddatum</div></div>`;
@@ -788,7 +887,17 @@ function openForm(id){
   set("f-status",r?r.status:"Geregistreerd");
   set("f-betrokkenen",r?r.betrokkenen:"");
   set("f-toelichting",r?r.toelichting:"");
+  buildCatCheckboxes(r?catKeys(r):[]);
   document.getElementById("overlay").classList.remove("hidden");
+}
+function buildCatCheckboxes(selected){
+  const sel=new Set(selected);
+  document.getElementById("f-cats").innerHTML = CONFIG.categories.map(c=>
+    `<label title="${esc(c.tip)}"><input type="checkbox" value="${c.key}" ${sel.has(c.key)?"checked":""}> ${esc(c.label)}</label>`
+  ).join("");
+}
+function getCheckedCats(){
+  return [...document.querySelectorAll('#f-cats input:checked')].map(i=>i.value).join(",");
 }
 function closeForm(){document.getElementById("overlay").classList.add("hidden");EDIT_ID=null}
 function set(id,v){document.getElementById(id).value=v||""}
@@ -808,7 +917,8 @@ async function saveForm(){
     invoerder:get("f-invoerder").trim(),afspraak:get("f-afspraak").trim(),
     termijn:get("f-termijn"),einddatum:get("f-einddatum"),
     status:get("f-status"),betrokkenen:get("f-betrokkenen").trim(),
-    toelichting:get("f-toelichting").trim()
+    toelichting:get("f-toelichting").trim(),
+    categorieen:getCheckedCats()
   };
   // optimistische update voor een snappy gevoel
   if(editId){const i=DATA.findIndex(x=>x.id===editId);if(i>=0)DATA[i]=rec} else DATA.unshift(rec);
@@ -832,13 +942,21 @@ async function delRow(id){
 }
 
 /* ============================================================
-   PRINT / PDF — periode [van] t/m [t/m], op melddatum
+   PRINT / PDF — aangevinkte selectie, of anders periode + actief filter
    ============================================================ */
 function printRange(){
   const from=document.getElementById("p-from").value;
   const to=document.getElementById("p-to").value;
-  const rows=DATA.filter(r=>(!from||r.datum>=from)&&(!to||r.datum<=to))
-    .sort((a,b)=>(a.datum||"").localeCompare(b.datum||""));
+  let rows, metaLine;
+  if(SEL.size){
+    rows = DATA.filter(r=>SEL.has(r.id));
+    metaLine = `Aangevinkte selectie`;
+  } else {
+    rows = filtered().filter(r=>(!from||r.datum>=from)&&(!to||r.datum<=to));
+    const cat = CATFILTER.size ? ` · categorie: ${[...CATFILTER].map(catLabel).join(", ")}` : "";
+    metaLine = `Periode ${from?isoToNl(from):"begin"} t/m ${to?isoToNl(to):"heden"}${cat}`;
+  }
+  rows = rows.slice().sort((a,b)=>(a.datum||"").localeCompare(b.datum||""));
   const head=`
     <div class="p-head">
       <div>
@@ -846,23 +964,25 @@ function printRange(){
         <h1>${esc(CONFIG.appTitle)}</h1>
       </div>
       <div class="p-meta">
-        Overzicht periode<br><b>${from?isoToNl(from):"begin"} t/m ${to?isoToNl(to):"heden"}</b><br>
+        ${esc(metaLine)}<br>
         Gegenereerd op ${isoToNl(isoToday())} · ${rows.length} ${rows.length===1?"melding":"meldingen"}
       </div>
     </div>`;
   const body=rows.length?`
     <table class="p-tbl"><thead><tr>
-      <th>Datum</th><th>Type</th><th>Onderwerp</th><th>Omschrijving</th>
+      <th>Datum</th><th>Type</th><th>Onderwerp</th><th>Omschrijving</th><th>Categorie(ën)</th>
       <th>Gemeld door</th><th>Ingevoerd</th><th>Afspraak / vervolg</th>
       <th>Status</th><th>Einddatum</th><th>Resterend</th>
     </tr></thead><tbody>
     ${rows.map(r=>{const d=deadlineInfo(r);
       const cls=d.state==="over"?"p-over":d.state==="crit"?"p-crit":"";
+      const cats=catKeys(r).map(catLabel).join(", ")||"—";
       return `<tr>
         <td style="white-space:nowrap">${isoToNl(r.datum)}</td>
         <td>${esc(r.type)}</td>
         <td><b>${esc(r.onderwerp)}</b></td>
         <td>${esc(r.omschrijving)}</td>
+        <td>${esc(cats)}</td>
         <td>${esc(r.melder||"—")}</td>
         <td>${esc(r.invoerder||"—")}</td>
         <td>${esc(r.afspraak||"—")}</td>
@@ -871,7 +991,7 @@ function printRange(){
         <td class="${cls}" style="white-space:nowrap">${d.state==="none"?"—":d.label}</td>
       </tr>`}).join("")}
     </tbody></table>`
-    :`<p style="padding:20px;color:#555">Geen meldingen in deze periode.</p>`;
+    :`<p style="padding:20px;color:#555">Geen meldingen om te tonen.</p>`;
   const foot=`<div class="p-foot"><span>${esc(CONFIG.footer)}</span><span>Pagina’s automatisch genummerd door de browser</span></div>`;
   document.getElementById("print").innerHTML=head+body+foot;
   window.print();
