@@ -155,6 +155,10 @@ table.reg{width:100%;border-collapse:collapse}
 .reg thead th{
   background:var(--brand);color:#fff;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;
   font-weight:600;text-align:left;padding:12px 14px;white-space:nowrap}
+.reg th.sortable{cursor:pointer;user-select:none;transition:background .12s}
+.reg th.sortable:hover{background:var(--brand-dark)}
+.reg th.sort-active{background:var(--brand-dark)}
+.reg th .caret{font-size:9px;margin-left:3px;opacity:.95}
 .reg tbody td{padding:13px 14px;border-top:1px solid var(--line-soft);vertical-align:top;font-size:14px}
 .reg tbody tr:hover{background:#fafbfa}
 .reg .t-onderwerp{font-weight:600;color:var(--ink)}
@@ -319,11 +323,11 @@ table.reg{width:100%;border-collapse:collapse}
     <table class="reg">
       <thead>
         <tr>
-          <th>Datum</th>
-          <th>Type</th>
-          <th>Onderwerp &amp; omschrijving</th>
-          <th class="hide-sm">Status</th>
-          <th>Deadline</th>
+          <th class="sortable" data-sort="datum" onclick="setSort('datum')">Datum <span class="caret"></span></th>
+          <th class="sortable" data-sort="type" onclick="setSort('type')">Type <span class="caret"></span></th>
+          <th class="sortable" data-sort="onderwerp" onclick="setSort('onderwerp')">Onderwerp &amp; omschrijving <span class="caret"></span></th>
+          <th class="sortable hide-sm" data-sort="status" onclick="setSort('status')">Status <span class="caret"></span></th>
+          <th class="sortable" data-sort="deadline" onclick="setSort('deadline')">Deadline <span class="caret"></span></th>
           <th></th>
         </tr>
       </thead>
@@ -508,7 +512,7 @@ function remainLabel(days){
    DATA — lokaal (demo). Met BACKEND_URL praat dit met de Sheet.
    ============================================================ */
 let DATA=[];
-let _id=0; const nid=()=>"r"+Date.now().toString(36)+(++_id).toString(36)+Math.random().toString(36).slice(2,5);
+let _id=0; const nid=()=>"r"+Date.now().toString(36)+(++_id).toString(36)+Math.random().toString(36).slice(2,5);  // uniek: tijdstip + oplopende teller + toeval, botst niet met bestaande id's
 
 const SEED=[
   // -- echte rijen uit de Sheet --
@@ -653,17 +657,55 @@ async function start(){
   document.getElementById("p-to").value=isoToday();
 }
 
+/* ---------- sorteren op kolomkop ---------- */
+let SORT={key:"datum",dir:"desc"};
+const STATUS_RANK={"Geregistreerd":0,"In behandeling":1,"Toegezegd":2,"Afgerond":3,"Vervallen":4};
+function setSort(key){
+  if(SORT.key===key){ SORT.dir = SORT.dir==="asc"?"desc":"asc"; }
+  else { SORT.key=key; SORT.dir = (key==="deadline")?"asc":(key==="datum")?"desc":"asc"; }
+  render();
+}
+function daysToEnd(r){ return r.einddatum ? daysBetween(isoToday(),r.einddatum) : null; }
+function sortRows(rows){
+  const s = SORT.dir==="asc" ? 1 : -1;
+  rows.sort((a,b)=>{
+    switch(SORT.key){
+      case"type":     return s*(a.type||"").localeCompare(b.type||"","nl");
+      case"onderwerp":return s*(a.onderwerp||"").localeCompare(b.onderwerp||"","nl");
+      case"status":   return s*(((STATUS_RANK[a.status]??9)-(STATUS_RANK[b.status]??9))||(a.status||"").localeCompare(b.status||""));
+      case"deadline":{
+        const ad=daysToEnd(a),bd=daysToEnd(b);
+        if(ad===null&&bd===null) return 0;
+        if(ad===null) return 1;            // 'geen einddatum' altijd onderaan
+        if(bd===null) return -1;
+        return s*(ad-bd);
+      }
+      default:        return s*((a.datum||"").localeCompare(b.datum||""));  // datum
+    }
+  });
+  return rows;
+}
+function updateSortCarets(){
+  document.querySelectorAll("th[data-sort]").forEach(th=>{
+    const active = th.getAttribute("data-sort")===SORT.key;
+    th.classList.toggle("sort-active",active);
+    const c=th.querySelector(".caret");
+    if(c) c.textContent = active ? (SORT.dir==="asc"?"▲":"▼") : "";
+  });
+}
+
 function filtered(){
   const q=document.getElementById("q").value.trim().toLowerCase();
-  let rows=DATA.slice().sort((a,b)=>(b.datum||"").localeCompare(a.datum||""));
+  let rows=DATA.slice();
   if(q){rows=rows.filter(r=>[r.onderwerp,r.omschrijving,r.melder,r.invoerder,r.type,r.afspraak,r.status]
     .join(" ").toLowerCase().includes(q))}
-  return rows;
+  return sortRows(rows);
 }
 
 function render(){
   const rows=filtered();
   renderAlerts();
+  updateSortCarets();
   const tb=document.getElementById("tbody");
   tb.innerHTML="";
   document.getElementById("empty").classList.toggle("hidden",rows.length>0);
