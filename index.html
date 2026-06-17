@@ -109,6 +109,19 @@ input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink)}
 .pagehead h1{font-size:30px;line-height:1.08}
 .pagehead p{margin:7px 0 0;color:var(--ink-soft);max-width:62ch;font-size:14.5px}
 
+/* connection-status banner */
+.connbar{display:flex;align-items:center;gap:12px;background:#fdeceb;border:1px solid #f0c8c3;
+  border-left:4px solid var(--crit);border-radius:11px;padding:12px 16px;margin:8px 0 18px}
+.connbar .ic{flex:0 0 auto;width:22px;height:22px;border-radius:6px;background:var(--crit);color:#fff;
+  display:grid;place-items:center;font-weight:700;font-size:13px}
+.connbar b{font-weight:600}
+.connbar .small{font-size:13px;color:#8a2a22}
+.connbar button{margin-left:auto;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);
+  background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:13.5px;font-weight:500;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:80}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
 /* alert panel */
 .alertbar{
   background:#fff7ed;border:1px solid #f4ddbf;border-left:4px solid var(--warn);
@@ -282,6 +295,7 @@ table.reg{width:100%;border-collapse:collapse}
        wat is afgesproken en hoeveel tijd er nog is tot de afgesproken einddatum.</p>
   </div>
 
+  <div id="connbar"></div>
   <div id="alerts"></div>
 
   <div class="toolbar">
@@ -296,6 +310,7 @@ table.reg{width:100%;border-collapse:collapse}
       <label>t/m</label>
       <input id="p-to" type="date">
     </div>
+    <button id="reload-btn" class="btn btn-ghost btn-sm" onclick="manualReload()" style="display:none">↻ Herladen uit Sheet</button>
     <button class="btn btn-ghost btn-sm" onclick="printRange()">Print&nbsp;/&nbsp;PDF</button>
     <button id="add-btn" class="btn btn-sm" onclick="openForm()">+ Nieuwe melding</button>
   </div>
@@ -421,7 +436,7 @@ const CONFIG = {
   footer:"Huurdersvereniging Brederode · Bos en Duinlaan 2d · 2061 VP Bloemendaal · huurdersverenigingbrederode.nl",
   alertDays:21,            // toon in 'Aandacht' wat ≤ dit aantal dagen tot deadline staat
   alertFrac:0.8,           // …of waarvan de termijn voor ≥80% is verstreken
-  BACKEND_URL:"https://script.google.com/macros/s/AKfycby_gR5MDMj_5mPKTBUOdT1KCvy7rMfl2bph_n9839hJW5YnTHZ_szYbqNadTX-paALH/exec",          // leeg = lokaal (demo). Vul de Apps Script /exec-URL in voor de Sheet.
+  BACKEND_URL:"https://script.google.com/macros/s/AKfycby_gR5MDMj_5mPKTBUOdT1KCvy7rMfl2bph_n9839hJW5YnTHZ_szYbqNadTX-paALH/exec",  // ← CONTROLEER tegen je huidige index.html; 1 teken fout = "Sheet niet bereikbaar"
   accounts:[
     {user:"lezer",      pass:"lezen",    naam:"Meelezer",        rol:"lezer"},
     {user:"bestuur",    pass:"invoeren", naam:"Bestuur HVB",     rol:"invoerder"},
@@ -584,15 +599,58 @@ function can(what){
 /* ============================================================
    RENDER
    ============================================================ */
-async function start(){
-  if(CONFIG.BACKEND_URL){try{DATA=await backendLoad()}catch(e){loadLocal()}}
-  else loadLocal();
+/* ---------- verbindingsstatus + laden ---------- */
+let CONN = CONFIG.BACKEND_URL ? "loading" : "local";   // 'ok' | 'error' | 'loading' | 'local'
+
+async function loadData(){
+  if(CONFIG.BACKEND_URL){
+    setConn("loading");
+    try{ DATA = await backendLoad(); setConn("ok"); }
+    catch(e){ loadLocal(); setConn("error"); }
+  } else {
+    loadLocal(); setConn("local");
+  }
   DATA.forEach(r=>{r.datum=toIso(r.datum);r.einddatum=toIso(r.einddatum)});  // datums opschonen
-  // periode-defaults: vroegste melddatum t/m vandaag
+  render();
+}
+function setConn(s){ CONN=s; renderConn(); }
+function renderConn(){
+  const el=document.getElementById("connbar");
+  if(el){
+    el.innerHTML = (CONN==="error")
+      ? `<div class="connbar"><span class="ic">!</span>
+           <div><b>Sheet niet bereikbaar.</b>
+           <span class="small">Je ziet nu een lokale kopie; nieuwe wijzigingen worden mogelijk niet bewaard.</span></div>
+           <button class="btn btn-sm" onclick="manualReload()">Opnieuw proberen</button></div>`
+      : "";
+  }
+  const rb=document.getElementById("reload-btn");
+  if(rb){
+    rb.style.display = CONFIG.BACKEND_URL ? "" : "none";
+    rb.disabled = (CONN==="loading");
+    rb.textContent = (CONN==="loading") ? "Herladen…" : "↻ Herladen uit Sheet";
+  }
+}
+async function manualReload(){
+  await loadData();
+  if(CONN==="ok") showToast("Bijgewerkt uit de Sheet");
+}
+
+/* korte bevestiging onderin beeld */
+let _toastT;
+function showToast(msg){
+  let t=document.getElementById("toast");
+  if(!t){t=document.createElement("div");t.id="toast";t.className="toast";document.body.appendChild(t);}
+  t.textContent=msg; t.classList.add("show");
+  clearTimeout(_toastT); _toastT=setTimeout(()=>t.classList.remove("show"),1900);
+}
+
+async function start(){
+  await loadData();
+  // periode-defaults: vroegste melddatum t/m vandaag (alleen bij eerste keer)
   const dates=DATA.map(r=>r.datum).filter(Boolean).sort();
   document.getElementById("p-from").value=dates[0]||isoToday();
   document.getElementById("p-to").value=isoToday();
-  render();
 }
 
 function filtered(){
@@ -700,8 +758,9 @@ function syncEinddatum(){
 async function saveForm(){
   const onderwerp=get("f-onderwerp").trim();
   if(!onderwerp){alert("Geef een onderwerp op.");return}
+  const editId=EDIT_ID;
   const rec={
-    id:EDIT_ID||nid(),
+    id:editId||nid(),
     datum:get("f-datum"),type:get("f-type"),onderwerp,
     omschrijving:get("f-omschr").trim(),melder:get("f-melder").trim(),
     invoerder:get("f-invoerder").trim(),afspraak:get("f-afspraak").trim(),
@@ -709,18 +768,25 @@ async function saveForm(){
     status:get("f-status"),betrokkenen:get("f-betrokkenen").trim(),
     toelichting:get("f-toelichting").trim()
   };
-  if(EDIT_ID){const i=DATA.findIndex(x=>x.id===EDIT_ID);DATA[i]=rec}
-  else DATA.unshift(rec);
-  if(CONFIG.BACKEND_URL){try{await backendSave(rec)}catch(e){}}else saveLocal();
+  // optimistische update voor een snappy gevoel
+  if(editId){const i=DATA.findIndex(x=>x.id===editId);if(i>=0)DATA[i]=rec} else DATA.unshift(rec);
   closeForm();render();
+  if(CONFIG.BACKEND_URL){
+    try{await backendSave(rec)}catch(e){}
+    await loadData();                              // herlees de Sheet = bron van waarheid
+    if(CONN==="ok") showToast(editId?"Gewijzigd en bijgewerkt uit de Sheet":"Opgeslagen en bijgewerkt uit de Sheet");
+  } else saveLocal();
 }
 async function delRow(id){
   if(!can("delete"))return;
   const r=DATA.find(x=>x.id===id);
   if(!confirm(`Melding "${r?r.onderwerp:""}" verwijderen?`))return;
-  DATA=DATA.filter(x=>x.id!==id);
-  if(CONFIG.BACKEND_URL){try{await backendDelete(id)}catch(e){}}else saveLocal();
-  render();
+  DATA=DATA.filter(x=>x.id!==id);render();         // optimistisch
+  if(CONFIG.BACKEND_URL){
+    try{await backendDelete(id)}catch(e){}
+    await loadData();                              // herlees de Sheet = bron van waarheid
+    if(CONN==="ok") showToast("Verwijderd en bijgewerkt uit de Sheet");
+  } else saveLocal();
 }
 
 /* ============================================================
