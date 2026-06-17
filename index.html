@@ -150,8 +150,8 @@ input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink)}
 
 /* table */
 .tablewrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);overflow:hidden}
-table.reg{width:100%;border-collapse:collapse}
+  box-shadow:var(--shadow);overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.reg{width:100%;border-collapse:collapse;min-width:680px}
 .reg thead th{
   background:var(--brand);color:#fff;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;
   font-weight:600;text-align:left;padding:12px 14px;white-space:nowrap}
@@ -270,9 +270,33 @@ table.reg{width:100%;border-collapse:collapse}
 
 /* ---------- responsive ---------- */
 @media(max-width:780px){
-  .reg .hide-sm{display:none}
   .pagehead h1{font-size:25px}
   .period input{width:104px}
+}
+
+/* ---- telefoon (staand): elke melding als gestapelde kaart, geen brede tabel ---- */
+@media(max-width:720px){
+  .toolbar{gap:8px}
+  .search{flex:1 1 100%}
+  .period{flex:1 1 100%;justify-content:center}
+  .catgrid{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr}
+
+  .tablewrap{border:none;background:transparent;box-shadow:none;overflow:visible}
+  table.reg{min-width:0;display:block}
+  .reg thead{display:none}
+  .reg tbody{display:block}
+  .reg tr{display:block;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--shadow);margin-bottom:12px;padding:14px 14px 12px;position:relative}
+  .reg td{display:block;border:none !important;padding:3px 0;font-size:14px}
+  .reg td.selcol{position:absolute;top:12px;right:10px;width:auto;padding:0}
+  /* datum + type samen op de bovenste regel */
+  .reg td:nth-child(2),.reg td:nth-child(3){display:inline-block;width:auto;vertical-align:middle;margin:0 8px 5px 0}
+  .reg td:nth-child(2){font-size:12.5px;color:var(--ink-soft);font-weight:600}
+  .reg .t-omschr{max-width:none}
+  .reg .dl{min-width:0;margin-top:4px}
+  .reg .rowact{margin-top:10px}
+  .reg .iconbtn{width:38px;height:38px}   /* ruimer aantikbaar */
 }
 </style>
 </head>
